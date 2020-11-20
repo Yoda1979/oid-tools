@@ -1,0 +1,40 @@
+DESCRIPTION:
+Tools for extracrion of OID translation
+
+BUILDING:
+openssl, openssl development and openssl GOST engine must be installed
+for util cert.
+cd ./tools
+make
+
+
+USAGE:
+1. Create x509 certificate test.cer with OIDs listed in input file. OIDs will be
+wrapped into 'extended key usage' x509v3 extension.
+Example: cert eku-openssl.txt
+
+2. Process test.cer certificate on target platform.
+Example (Windows 10 RU): 		CertUtil.exe -asn test.cer > CertUtil-openssl-w10ru-cp1251.txt
+Example (Windows Server 2019 RU):	CertUtil.exe -asn test.cer > CertUtil-openssl-ws19ru-cp1251.txt
+
+3. Process output (depending on platform)
+Example: 
+dos2unix CertUtil-openssl-w10ru_cp1251.txt
+iconv -f cp1251 -t UTF-8 CertUtil-openssl-w10ru-cp1251.txt > CertUtil-openssl-w10ru-UTF8.txt
+dos2unix CertUtil-openssl-ws19_cp1251.txt
+iconv -f cp1251 -t UTF-8 CertUtil-openssl-ws19ru-cp1251.txt > CertUtil-openssl-ws19ru-UTF8.txt
+
+4. Parse output into .pot file (depending on platform)
+parser eku-openssl.txt CertUtil-openssl-w10ru-UTF8.txt > CertUtil-openssl-w10ru.pot
+parser eku-openssl.txt CertUtil-openssl-ws19ru-UTF8.txt > CertUtil-openssl-ws19ru.pot
+
+5. Join .pot files into single .pot file.
+Example: potsum CertUtil-openssl-ws19ru.pot CertUtil-openssl-w10ru.pot > ru.pot
+
+NOTE:
+Different versions of software and MS Windows OSes have as different OID sets as well 
+different translation for the same OID. Syncronize translations from different sources
+and integrate .pot files into single .pot file.
+
+CONTRIBUTE:
+Send your OID translations (single .pot file) to project oidtdb.
