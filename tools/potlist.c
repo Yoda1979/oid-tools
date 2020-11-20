@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 #include <error.h>
 
 #include "xalloc.h"
@@ -33,8 +34,12 @@ void oid_list_append(struct oid_list *olp, const char *oid, char *str, bool str_
 
 	for (i = 0; i < olp->nitems; i++) {
 		if (!strcmp(olp->item[i]->num, oid)) {
-			if (str_check && strcmp(olp->item[i]->str, str))
-				error (EXIT_FAILURE, 0, "OID %s is inconsistent", oid);
+			if (str_check && strcmp(olp->item[i]->str, str)) {
+				fprintf (stderr, "OID %s is inconsistent\n", oid);
+				fprintf (stderr, "> %s\n", olp->item[i]->str);
+				fprintf (stderr, "< %s\n", str);
+				exit  (EXIT_FAILURE);
+			}
 			return;
 		}
 	}
