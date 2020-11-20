@@ -3,7 +3,7 @@ Tools for extracrion of OID translation
 
 BUILDING:
 openssl, openssl development and openssl GOST engine must be installed
-for util cert.
+for utils cert and parser_openssl.
 cd ./tools
 make
 
@@ -25,8 +25,9 @@ dos2unix CertUtil-openssl-ws19_cp1251.txt
 iconv -f cp1251 -t UTF-8 CertUtil-openssl-ws19ru-cp1251.txt > CertUtil-openssl-ws19ru-UTF8.txt
 
 4. Parse output into .pot file (depending on platform)
-parser eku-openssl.txt CertUtil-openssl-w10ru-UTF8.txt > CertUtil-openssl-w10ru.pot
-parser eku-openssl.txt CertUtil-openssl-ws19ru-UTF8.txt > CertUtil-openssl-ws19ru.pot
+parser_win eku-openssl.txt CertUtil-openssl-w10ru-UTF8.txt > CertUtil-openssl-w10ru.pot
+parser_win eku-openssl.txt CertUtil-openssl-ws19ru-UTF8.txt > CertUtil-openssl-ws19ru.pot
+parser_openssl obj_mac.h > openssl.pot
 
 5. Join .pot files into single .pot file.
 Example: potsum CertUtil-openssl-ws19ru.pot CertUtil-openssl-w10ru.pot > ru.pot
