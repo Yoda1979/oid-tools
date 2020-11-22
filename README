@@ -1,5 +1,5 @@
 DESCRIPTION:
-Tools for extracrion of OID translation
+Tools for extraction of OID translation
 
 BUILDING:
 openssl, openssl development and openssl GOST engine must be installed
@@ -30,7 +30,11 @@ parser_win eku-openssl.txt CertUtil-openssl-ws19ru-UTF8.txt > CertUtil-openssl-w
 parser_openssl obj_mac.h > openssl.pot
 
 5. Join .pot files into single .pot file.
-Example: potsum CertUtil-openssl-ws19ru.pot CertUtil-openssl-w10ru.pot > ru.pot
+Example: potsum CertUtil-openssl-ws19ru.pot CertUtil-openssl-w10ru.pot > ru-openssl.pot
+
+6. Exec procedures in 1-5 for all files in eku directory
+
+7. Join all .pot files for single language
 
 NOTE:
 Different versions of software and MS Windows OSes have as different OID sets as well 
