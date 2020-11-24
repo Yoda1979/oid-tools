@@ -7,7 +7,6 @@ for utils cert and parser_openssl.
 cd ./tools
 make
 
-
 USAGE:
 1. Create x509 certificate test.cer with OIDs listed in input file. OIDs will be
 wrapped into 'extended key usage' x509v3 extension.
@@ -27,7 +26,6 @@ iconv -f cp1251 -t UTF-8 CertUtil-openssl-ws19ru-cp1251.txt > CertUtil-openssl-w
 4. Parse output into .pot file (depending on platform)
 parser_win eku-openssl.txt CertUtil-openssl-w10ru-UTF8.txt > CertUtil-openssl-w10ru.pot
 parser_win eku-openssl.txt CertUtil-openssl-ws19ru-UTF8.txt > CertUtil-openssl-ws19ru.pot
-parser_openssl obj_mac.h > openssl.pot
 
 5. Join .pot files into single .pot file.
 Example: potsum CertUtil-openssl-ws19ru.pot CertUtil-openssl-w10ru.pot > ru-openssl.pot

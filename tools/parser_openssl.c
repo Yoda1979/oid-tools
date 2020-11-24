@@ -1,4 +1,4 @@
-/* Utility for parsing obj_mac.h from openssl, short names (SN_) are ignored
+/* Utility for parsing obj_mac.h from openssl, creating long.pot and short.pot files
    Copyright (C) 2020 Sergey V. Kostyuk
 
    This file was written by Sergey V. Kostyuk <kostyuk.sergey79@gmail.com>, 2020.
@@ -32,7 +32,7 @@ char ln_str[BUF_SIZE];
 char sn_str[BUF_SIZE];
 char obj_str[BUF_SIZE];
 
-void proc_entry(void)
+void proc_entry(FILE *file, char *name_str, char *nid_str)
 {
 	ASN1_OBJECT *obj;
 	char oid[BUF_SIZE], *s;
@@ -65,37 +65,32 @@ void proc_entry(void)
 		return;
 	}
 
-	if (strlen(ln_str) != 0) {
-		s = strrchr(ln_str, '"');
+	if (name_str[0] != 0) {
+		s = strrchr(name_str, '"');
 		if (s == NULL) {
-			fprintf (stderr, "Bad long name string %s\n", ln_str);
+			fprintf (stderr, "Bad long name string %s\n", name_str);
 			exit (EXIT_FAILURE);
 		}
 		*s = '\0';
 
-		s = strrchr(ln_str, '"');
+		s = strrchr(name_str, '"');
 		if (s == NULL) {
-			fprintf (stderr, "Bad long name string %s\n", ln_str);
+			fprintf (stderr, "Bad long name string %s\n", name_str);
 			exit (EXIT_FAILURE);
 		}
 		*s = '\0';
 		s++;
 
-//		if (strcmp(s, OBJ_nid2ln(nid))) {
-//			fprintf (stderr, "Bad long name %s\t%s\n", s, OBJ_nid2ln(nid));
-//			exit (EXIT_FAILURE);
-//		}
-
-        	fprintf (stdout, "msgid \"%s\"\n", oid);
-        	fprintf (stdout, "msgstr \"%s\"\n", s);
-        	fprintf (stdout, "\n");
+        	fprintf (file, "msgid \"%s\"\n", oid);
+        	fprintf (file, "msgstr \"%s\"\n", s);
+        	fprintf (file, "\n");
 	}
 	return;
 }
 
 int main(int argc, char *argv[])
 {
-	FILE *file;
+	FILE *file, *sfile, *lfile;
 	char *s, *line = NULL, *k;
 	size_t n;
 	ssize_t read;
@@ -148,6 +143,16 @@ int main(int argc, char *argv[])
 		exit (EXIT_FAILURE);
 	}
 
+	if ((lfile = fopen("long.pot", "w")) == NULL) {
+		fprintf (stderr, "Failed to open long.pot file\n");
+		goto out;
+	}
+
+	if ((sfile = fopen("short.pot", "w")) == NULL) {
+		fprintf (stderr, "Failed to open short.pot file\n");
+		goto out_lfile;
+	}
+
 	while ((read = getline(&line, &n, file)) != -1) {
 		if (line[read - 1] == '\n') {
 			line[read - 1] = '\0';
@@ -168,7 +173,8 @@ int main(int argc, char *argv[])
 		k = line;
 
 		if (*k == '\n' || *k == ' ' || *k == '\0') {
-			proc_entry();
+			proc_entry(lfile, ln_str, nid_str);
+			proc_entry(sfile, sn_str, nid_str);
 			*nid_str = '\0';
 			*ln_str = '\0';
 			*sn_str = '\0';
@@ -198,10 +204,14 @@ int main(int argc, char *argv[])
 		}
 
 	}
-	proc_entry();
+	proc_entry(lfile, ln_str, nid_str);
+	proc_entry(sfile, sn_str, nid_str);
 	if (line)
 		free (line);
-
+	fclose (sfile);
+out_lfile:
+	fclose (lfile);
+out:
 	fclose (file);
 	return EXIT_SUCCESS;
 }
