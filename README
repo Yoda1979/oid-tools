@@ -18,9 +18,9 @@ Example (Windows Server 2019 RU):	CertUtil.exe -asn test.cer > CertUtil-openssl-
 
 3. Process output (depending on platform)
 Example: 
-dos2unix CertUtil-openssl-w10ru_cp1251.txt
+dos2unix CertUtil-openssl-w10ru-cp1251.txt
 iconv -f cp1251 -t UTF-8 CertUtil-openssl-w10ru-cp1251.txt > CertUtil-openssl-w10ru-UTF8.txt
-dos2unix CertUtil-openssl-ws19_cp1251.txt
+dos2unix CertUtil-openssl-ws19ru-cp1251.txt
 iconv -f cp1251 -t UTF-8 CertUtil-openssl-ws19ru-cp1251.txt > CertUtil-openssl-ws19ru-UTF8.txt
 
 4. Parse output into .pot file (depending on platform)
