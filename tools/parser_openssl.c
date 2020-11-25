@@ -94,49 +94,10 @@ int main(int argc, char *argv[])
 	char *s, *line = NULL, *k;
 	size_t n;
 	ssize_t read;
-	ENGINE *e;
-	CONF *pConfig = NCONF_new(NULL);
-        BIO *bpConf;
-        long lErrLine;
-        char sConf[] =
-            "openssl_conf = openssl_def\n"
-            "\n"
-            "[openssl_def]\n"
-            "engines = engine_section\n"
-            "\n"
-            "[engine_section]\n"
-            "gost = gost_section\n"
-            "\n"
-            "[gost_section]\n"
-            "engine_id = gost\n"
-            "dynamic_path = ../../openssl_gost/gost.so\n"
-            "default_algorithms = ALL\n"
-            "CRYPT_PARAMS = id-Gost28147-89-CryptoPro-A-ParamSet\n"
-            "\n"
-            ;
 
 	ERR_load_crypto_strings();
         ENGINE_load_builtin_engines();
         OPENSSL_load_builtin_modules();
-
-	bpConf = BIO_new_mem_buf(sConf, -1);
-        if(!NCONF_load_bio(pConfig, bpConf, &lErrLine)) {
-                fflush(NULL);
-                fprintf(stderr, "NCONF_load_bio: ErrLine=%ld: %s\n", lErrLine, ERR_error_string(ERR_get_error(), NULL));
-                return EXIT_FAILURE;
-        }
-        BIO_free(bpConf);
-
-        if(!CONF_modules_load(pConfig, NULL, 0)) {
-                fflush(NULL);
-                fprintf(stderr, "CONF_modules_load: %s\n", ERR_error_string(ERR_get_error(), NULL));
-                return EXIT_FAILURE;
-        }
-
-	if((e = ENGINE_by_id("gost")) == NULL) {
-                printf ("Failed to get engine: %s\n", ERR_error_string(ERR_get_error(), NULL));
-                exit (EXIT_FAILURE);
-        }
 
 	if ((file = fopen(argv[1], "r")) == NULL) {
 		fprintf (stderr, "Failed to open %s file\n", argv[1]);

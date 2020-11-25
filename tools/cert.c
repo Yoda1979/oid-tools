@@ -20,6 +20,8 @@
 #include <string.h>
 #include <openssl/engine.h>
 #include <openssl/conf.h>
+#include <openssl/bio.h>
+#include <openssl/rsa.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 
@@ -274,28 +276,59 @@ err:
 	return NULL;
 }
 
-EVP_PKEY* EVP_PKEY_gost_keygen(ENGINE* e, int type, int param_nid)
+static int genrsa_cb(int p, int n, BN_GENCB *cb)
 {
-        EVP_PKEY *pk = NULL;
-        EVP_PKEY_CTX *ctx = NULL;
-        const char* name;
+	return 1;
+}
 
-        if (!e)
+EVP_PKEY* RSA_keygen(void)
+{
+	EVP_PKEY *pk;
+	RSA *rsa;
+	BIGNUM *bn;
+	BN_GENCB *cb;
+
+	if ((pk = EVP_PKEY_new()) == NULL) {
+		fprintf(stderr, "EVP_PKEY_new failed %s\n", ERR_error_string(ERR_get_error(), NULL));
                 return NULL;
-        if ((ctx = EVP_PKEY_CTX_new_id(type, e)) == NULL)
-                return NULL;
-        if (EVP_PKEY_keygen_init(ctx) <= 0)
-                goto out;
-        name = OBJ_nid2sn(param_nid);
-        if (name == NULL)
-                goto out;
-        if (EVP_PKEY_CTX_ctrl_str(ctx, "paramset", name) <= 0)
-                goto out;
-        EVP_PKEY_keygen(ctx, &pk);
-out:
-        if (ctx)
-                EVP_PKEY_CTX_free(ctx);
-        return pk;
+	}
+
+	if ((bn = BN_new()) == NULL) {
+		fprintf(stderr, "BN_new failed %s\n", ERR_error_string(ERR_get_error(), NULL));
+		goto err;
+	}
+
+	if ((cb = BN_GENCB_new()) == NULL) {
+		fprintf(stderr, "BN_GENCB_new failed %s\n", ERR_error_string(ERR_get_error(), NULL));
+		goto err_bn;
+	}
+	BN_GENCB_set(cb, genrsa_cb, NULL);
+
+	if ((rsa = RSA_new()) == NULL) {
+		fprintf(stderr, "RSA_new failed %s\n", ERR_error_string(ERR_get_error(), NULL));
+		goto err_cb;
+	}
+
+	if (!BN_set_word(bn, RSA_F4) || !RSA_generate_multi_prime_key(rsa, 1024, 2, bn, cb)) {
+		fprintf(stderr, "RSA_generate_multi_prime_key failed %s\n", ERR_error_string(ERR_get_error(), NULL));
+		goto err_cb;
+	}
+        if (!EVP_PKEY_assign_RSA(pk, rsa)) {
+		fprintf(stderr, "EVP_PKEY_assign_RSA failed %s\n", ERR_error_string(ERR_get_error(), NULL));
+                goto err_rsa;
+        }
+	BN_GENCB_free(cb);
+	BN_free(bn);
+	return pk;
+err_rsa:
+	RSA_free(rsa);
+err_cb:
+	BN_GENCB_free(cb);
+err_bn:
+	BN_free(bn);
+err:
+	EVP_PKEY_free (pk);
+        return NULL;
 }
 
 ASN1_OCTET_STRING *fca_pack_extension_octet(int nid, ASN1_VALUE *val)
@@ -390,14 +423,14 @@ err:
 	return 0;
 }
 
-X509 *create_cert(ENGINE *e, const char *file)
+X509 *create_cert(const char *file)
 {
 	X509 *x;
 	X509_NAME *name;
 	X509_EXTENSION *ex;
 	ASN1_INTEGER *serial;
 	ASN1_TIME *tm;
-	EVP_PKEY *pbkey, *pk;
+	EVP_PKEY *pk;
 	time_t t0, t1;
 	const EVP_MD *md;
 
@@ -454,15 +487,11 @@ X509 *create_cert(ENGINE *e, const char *file)
         ASN1_TIME_free (tm);
 
 	// pubkey
-        if ((pbkey = EVP_PKEY_gost_keygen(e, NID_id_GostR3410_2001, NID_id_GostR3410_2001_CryptoPro_XchA_ParamSet)) == NULL) {
-		fprintf(stderr, "EVP_PKEY_gost_keygen failed %s\n", ERR_error_string(ERR_get_error(), NULL));
-                goto err;
-	}
-        if (!X509_set_pubkey(x, pbkey)) {
-                EVP_PKEY_free (pbkey);
-                goto err;
+	if ((pk = RSA_keygen()) == NULL)
+		goto err;
+        if (!X509_set_pubkey(x, pk)) {
+                goto err_pk;
         }
-        EVP_PKEY_free (pbkey);
 
 	// extensions
 	if (1) {
@@ -471,10 +500,10 @@ X509 *create_cert(ENGINE *e, const char *file)
 	        X509V3_set_ctx(&ctx, NULL, NULL, NULL, NULL, 0);
 		ex = X509V3_EXT_conf_nid(NULL, &ctx, NID_key_usage, "digitalSignature");
                 if (ex == NULL)
-                        goto err;
+                        goto err_pk;
                 if (!X509_add_ext(x, ex, -1)) {
                         X509_EXTENSION_free (ex);
-                        goto err;
+                        goto err_pk;
                 }
                 X509_EXTENSION_free (ex);
 	}
@@ -482,10 +511,10 @@ X509 *create_cert(ENGINE *e, const char *file)
 	if (1) {
 		ex = create_eku(file);
                 if (ex == NULL)
-                        goto err;
+                        goto err_pk;
                 if (!X509_add_ext(x, ex, -1)) {
                         X509_EXTENSION_free (ex);
-                        goto err;
+                        goto err_pk;
                 }
                 X509_EXTENSION_free (ex);
 	}
@@ -496,26 +525,26 @@ X509 *create_cert(ENGINE *e, const char *file)
                 X509V3_set_ctx(&ctx, NULL, x, NULL, NULL, 0);
                 ex = X509V3_EXT_conf_nid(NULL, &ctx, NID_subject_key_identifier, "hash");
                 if (ex == NULL)
-                        goto err;
+                        goto err_pk;
                 if (!X509_add_ext(x, ex, -1)) {
                         X509_EXTENSION_free (ex);
-                        goto err;
+                        goto err_pk;
                 }
                 X509_EXTENSION_free (ex);
         }
 
-	if ((md = EVP_get_digestbyname("md_gost12_512")) == NULL) {
+	if ((md = EVP_get_digestbyname("md5")) == NULL) {
 		fprintf(stderr, "EVP_get_digestbyname failed %s\n", ERR_error_string(ERR_get_error(), NULL));
-		goto err;
+		goto err_pk;
 	}
-	if ((pk = EVP_PKEY_gost_keygen(e, NID_id_GostR3410_2012_512, NID_id_tc26_gost_3410_2012_512_paramSetA)) == NULL)
-		goto err;
 	if (!X509_sign(x, pk, md)) {
 		EVP_PKEY_free (pk);
-		goto err;
+		goto err_pk;
 	}
 	EVP_PKEY_free (pk);
 	return x;
+err_pk:
+	EVP_PKEY_free (pk);
 err:
 	X509_free (x);
         return NULL;
@@ -550,51 +579,12 @@ int main(int argc, char *argv[])
 {
 	X509 *x;
 	int ret = EXIT_FAILURE;
-	ENGINE *e;
-	CONF *pConfig = NCONF_new(NULL);
-        BIO *bpConf;
-        long lErrLine;
-        char sConf[] =
-            "openssl_conf = openssl_def\n"
-            "\n"
-            "[openssl_def]\n"
-            "engines = engine_section\n"
-            "\n"
-            "[engine_section]\n"
-            "gost = gost_section\n"
-            "\n"
-            "[gost_section]\n"
-            "engine_id = gost\n"
-            "dynamic_path = /usr/lib64/engines-1.1/gost.so\n"
-            "default_algorithms = ALL\n"
-            "CRYPT_PARAMS = id-Gost28147-89-CryptoPro-A-ParamSet\n"
-            "\n"
-            ;
 
 	ERR_load_crypto_strings();
         ENGINE_load_builtin_engines();
         OPENSSL_load_builtin_modules();
 
-        bpConf = BIO_new_mem_buf(sConf, -1);
-        if(!NCONF_load_bio(pConfig, bpConf, &lErrLine)) {
-                fflush(NULL);
-                fprintf(stderr, "NCONF_load_bio: ErrLine=%ld: %s\n", lErrLine, ERR_error_string(ERR_get_error(), NULL));
-                return EXIT_FAILURE;
-        }
-        BIO_free(bpConf);
-
-        if(!CONF_modules_load(pConfig, NULL, 0)) {
-                fflush(NULL);
-                fprintf(stderr, "CONF_modules_load: %s\n", ERR_error_string(ERR_get_error(), NULL));
-                return EXIT_FAILURE;
-        }
-
-	if((e = ENGINE_by_id("gost")) == NULL) {
-                printf ("Failed to get engine: %s\n", ERR_error_string(ERR_get_error(), NULL));
-                return EXIT_FAILURE;
-        }
-
-	x = create_cert(e, argv[1]);
+	x = create_cert(argv[1]);
 	if (x == NULL) {
 		printf ("Failed to create certificate\n");
                 return EXIT_FAILURE;
