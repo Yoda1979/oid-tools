@@ -40,8 +40,10 @@ from different sources if neccessary
 Example:
 potsum w10ru.pot ws19ru.pot w7ru.pot > ru.pot
 
-7. Send final .pot file for your language to project oidtdb.
+7. Create .po file
+msginit -i ru.pot -o ru.po
 
+8. Send final .po file for your language to project oidtdb.
 
 NOTE (translation of arbitrary OIDs)
 If you want get translation of arbitrary OIDs create .txt file with list of OIDs (see
