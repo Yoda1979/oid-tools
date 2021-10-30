@@ -30,6 +30,8 @@
 #include "potread.h"
 #include "potlist.h"
 
+// AAA
+
 struct oid_list olist  = { NULL, 0, 0 };
 bool do_sort = false;
 
